@@ -4,7 +4,9 @@
 #include <array>
 #include <cinttypes>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -134,16 +136,21 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
   void read_uart_() {
     while (this->available()) {
       const uint8_t byte = this->read();
+      this->log_rx_byte_(byte);
       switch (this->rx_state_) {
         case RX_WAIT_HEADER:
           if (byte == HEADER) {
             this->rx_buffer_[0] = byte;
             this->rx_pos_ = 1;
             this->rx_state_ = RX_WAIT_LEN;
+          } else {
+            this->log_bytes_("RX invalid byte before header", &byte, 1, ESPHOME_LOG_LEVEL_WARN);
           }
           break;
         case RX_WAIT_LEN:
           if (byte == 0 || byte + 2 > FRAME_BUFFER_SIZE) {
+            this->rx_buffer_[this->rx_pos_++] = byte;
+            this->log_bytes_("RX invalid frame length", this->rx_buffer_.data(), this->rx_pos_, ESPHOME_LOG_LEVEL_WARN);
             this->rx_state_ = RX_WAIT_HEADER;
             this->rx_pos_ = 0;
             break;
@@ -166,12 +173,17 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
   }
 
   void handle_frame_(const uint8_t *frame, uint8_t size) {
-    if (size < 4 || frame[0] != HEADER)
+    this->log_bytes_("RX frame", frame, size, ESPHOME_LOG_LEVEL_DEBUG);
+
+    if (size < 4 || frame[0] != HEADER) {
+      this->log_bytes_("RX invalid frame", frame, size, ESPHOME_LOG_LEVEL_WARN);
       return;
+    }
 
     const uint8_t checksum = this->checksum_(frame, size - 1);
     if (checksum != frame[size - 1]) {
       ESP_LOGW(TAG, "Bad checksum: got %02X, expected %02X", frame[size - 1], checksum);
+      this->log_bytes_("RX bad checksum frame", frame, size, ESPHOME_LOG_LEVEL_WARN);
       return;
     }
 
@@ -218,9 +230,9 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
 
   void send_poll_() {
     const uint8_t frame[] = {0xAA, 0x02, 0x01, 0xAD};
+    this->log_bytes_("TX poll", frame, sizeof(frame), ESPHOME_LOG_LEVEL_DEBUG);
     this->write_array(frame, sizeof(frame));
     this->flush();
-    ESP_LOGV(TAG, "TX poll");
   }
 
   void send_command_() {
@@ -244,6 +256,7 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     std::copy(payload.begin(), payload.end(), frame.begin() + 2);
     frame[21] = this->checksum_(frame.data(), 21);
 
+    this->log_bytes_("TX command frame", frame.data(), 22, ESPHOME_LOG_LEVEL_DEBUG);
     this->write_array(frame.data(), 22);
     this->flush();
     ESP_LOGD(TAG, "TX command: power=%u mode=%u fan=%u target=%u special=%02X swing=%02X",
@@ -255,6 +268,23 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     for (uint8_t i = 0; i < size; i++)
       sum += data[i];
     return static_cast<uint8_t>(sum & 0xFF);
+  }
+
+  void log_rx_byte_(uint8_t byte) const {
+    ESP_LOGV(TAG, "RX byte: %02X", byte);
+  }
+
+  void log_bytes_(const char *prefix, const uint8_t *data, size_t size, int level) const {
+    std::string text;
+    text.reserve(size * 3);
+    for (size_t i = 0; i < size; i++) {
+      char byte_text[4];
+      snprintf(byte_text, sizeof(byte_text), "%02X", data[i]);
+      if (i > 0)
+        text += ' ';
+      text += byte_text;
+    }
+    ESP_LOG_LEVEL(level, TAG, "%s (%u bytes): %s", prefix, static_cast<unsigned>(size), text.c_str());
   }
 
   static float decode_temperature_(uint8_t value) { return static_cast<float>(value); }
