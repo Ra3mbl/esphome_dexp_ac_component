@@ -8,6 +8,7 @@ The component is based on the ESPHome external-component shape used by
 implemented for the CHiQ/DEXP protocol:
 
 - UART: `9600 8N1`
+- Startup handshake: `AA 03 03 03 B3`
 - Poll request: `AA 02 01 AD`
 - Status and command frames: `AA 14 <19-byte payload> CHECKSUM`
 - Checksum: `sum(all bytes before checksum) & 0xFF`
@@ -23,6 +24,10 @@ implemented for the CHiQ/DEXP protocol:
 - Sleep preset
 - Custom fan modes: `turbo`, `quiet`
 - Optional binary sensors for turbo, ionizer, and quiet state
+
+On boot the component sends the startup handshake frame and waits for the same
+valid frame from the indoor unit. Periodic polling and climate commands start
+only after that response is received.
 
 ## Example
 

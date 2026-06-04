@@ -57,6 +57,29 @@ AA 14 <19-byte payload> CHECKSUM
 For `AA 14` status frames, byte indexes below are zero-based indexes inside the
 payload, excluding `AA`, `LEN`, and `CHECKSUM`.
 
+## Power-On Handshake
+
+A capture from the moment power was applied showed a short startup handshake
+before normal polling begins:
+
+```text
+wifi_to_ac: AA 03 03 03 B3
+ac_to_wifi: AA 03 03 03 B3
+```
+
+This exchange was observed twice, about 1.2 seconds apart. In the same capture,
+normal polling started after that with `AA 02 01 AD` at about 14 seconds after
+capture start.
+
+The startup frame follows the same checksum rule:
+
+```text
+AA + 03 + 03 + 03 = B3
+```
+
+No `AA 14` command frame from Wi-Fi to AC was observed during this power-on
+capture before normal polling.
+
 ## Command Frames
 
 The Wi-Fi module also sends `AA 14` frames when controlling the AC.

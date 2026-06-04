@@ -56,10 +56,17 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     this->swing_mode = climate::CLIMATE_SWING_OFF;
     this->preset = climate::CLIMATE_PRESET_NONE;
     this->set_supported_custom_fan_modes(this->supported_custom_fan_modes_);
+    this->last_handshake_ = 0;
+    this->last_poll_ = 0;
   }
 
   void loop() override {
     this->read_uart_();
+
+    if (!this->handshake_ok_) {
+      this->do_handshake_();
+      return;
+    }
 
     const uint32_t now = millis();
     if (now - this->last_poll_ >= this->period_) {
@@ -109,6 +116,13 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
       this->set_custom_fan_mode_(call.get_custom_fan_mode());
 
     this->clamp_frontend_state_();
+    if (!this->handshake_ok_) {
+      ESP_LOGW(TAG, "Ignoring climate command until startup handshake completes");
+      if (this->optimistic_)
+        this->publish_state();
+      return;
+    }
+
     this->send_command_();
 
     if (this->optimistic_)
@@ -119,6 +133,7 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     ESP_LOGCONFIG(TAG, "CHiQ/DEXP UART AC");
     ESP_LOGCONFIG(TAG, "  Poll period: %" PRIu32 " ms", this->period_);
     ESP_LOGCONFIG(TAG, "  Optimistic: %s", YESNO(this->optimistic_));
+    ESP_LOGCONFIG(TAG, "  Startup handshake: enabled");
   }
 
  protected:
@@ -126,6 +141,8 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
   static constexpr uint8_t STATUS_LEN = 0x14;
   static constexpr uint8_t PAYLOAD_SIZE = 19;
   static constexpr uint8_t FRAME_BUFFER_SIZE = 24;
+  static constexpr uint32_t HANDSHAKE_RETRY_INTERVAL = 1200;
+  static constexpr uint8_t HANDSHAKE_FRAME_SIZE = 5;
 
   enum RxState : uint8_t {
     RX_WAIT_HEADER,
@@ -189,6 +206,18 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
 
     ESP_LOGV(TAG, "RX frame len=%u kind=%02X", frame[1], frame[2]);
 
+    if (this->is_handshake_frame_(frame, size)) {
+      this->handshake_ok_ = true;
+      this->last_poll_ = millis();
+      ESP_LOGI(TAG, "Startup handshake response received, normal UART exchange enabled");
+      return;
+    }
+
+    if (!this->handshake_ok_) {
+      ESP_LOGW(TAG, "Ignoring non-handshake frame until startup handshake completes");
+      return;
+    }
+
     if (frame[1] == STATUS_LEN)
       this->parse_status_payload_(&frame[2]);
   }
@@ -235,6 +264,23 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     this->flush();
   }
 
+  void send_handshake_() {
+    const uint8_t frame[HANDSHAKE_FRAME_SIZE] = {0xAA, 0x03, 0x03, 0x03, 0xB3};
+    this->log_bytes_("TX handshake", frame, sizeof(frame), ESPHOME_LOG_LEVEL_DEBUG);
+    this->write_array(frame, sizeof(frame));
+    this->flush();
+  }
+
+  void do_handshake_() {
+    const uint32_t now = millis();
+    if (this->handshake_attempts_ == 0 || now - this->last_handshake_ >= HANDSHAKE_RETRY_INTERVAL) {
+      this->last_handshake_ = now;
+      this->handshake_attempts_++;
+      ESP_LOGI(TAG, "Sending startup handshake attempt %u", static_cast<unsigned>(this->handshake_attempts_));
+      this->send_handshake_();
+    }
+  }
+
   void send_command_() {
     std::array<uint8_t, PAYLOAD_SIZE> payload{};
     payload[0] = 0x02;
@@ -268,6 +314,12 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
     for (uint8_t i = 0; i < size; i++)
       sum += data[i];
     return static_cast<uint8_t>(sum & 0xFF);
+  }
+
+  static bool is_handshake_frame_(const uint8_t *frame, uint8_t size) {
+    if (size != HANDSHAKE_FRAME_SIZE)
+      return false;
+    return frame[0] == 0xAA && frame[1] == 0x03 && frame[2] == 0x03 && frame[3] == 0x03 && frame[4] == 0xB3;
   }
 
   void log_rx_byte_(uint8_t byte) const {
@@ -392,6 +444,9 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
 
   uint32_t period_{5000};
   uint32_t last_poll_{0};
+  uint32_t last_handshake_{0};
+  uint16_t handshake_attempts_{0};
+  bool handshake_ok_{false};
   bool optimistic_{true};
 
   RxState rx_state_{RX_WAIT_HEADER};
