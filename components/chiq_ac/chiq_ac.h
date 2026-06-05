@@ -18,9 +18,9 @@
 #include "esphome/core/log.h"
 
 namespace esphome {
-namespace chiq_ac {
+namespace dexp_ac {
 
-static const char *const TAG = "chiq_ac";
+static const char *const TAG = "dexp_ac";
 
 class Constants {
  public:
@@ -32,7 +32,7 @@ class Constants {
   static constexpr float TEMPERATURE_STEP = 1.0f;
 };
 
-class ChiqAirCon : public climate::Climate, public Component, public uart::UARTDevice {
+class DexpAirCon : public climate::Climate, public Component, public uart::UARTDevice {
  public:
   void set_period(uint32_t period) { this->period_ = period; }
   void set_optimistic(bool optimistic) { this->optimistic_ = optimistic; }
@@ -130,7 +130,7 @@ class ChiqAirCon : public climate::Climate, public Component, public uart::UARTD
   }
 
   void dump_config() override {
-    ESP_LOGCONFIG(TAG, "CHiQ/DEXP UART AC");
+    ESP_LOGCONFIG(TAG, "DEXP UART AC");
     ESP_LOGCONFIG(TAG, "  Poll period: %" PRIu32 " ms", this->period_);
     ESP_LOGCONFIG(TAG, "  Optimistic: %s", YESNO(this->optimistic_));
     ESP_LOGCONFIG(TAG, "  Startup handshake: enabled");
