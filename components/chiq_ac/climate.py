@@ -30,18 +30,18 @@ CODEOWNERS = ["@Ra3mbl"]
 DEPENDENCIES = ["climate", "uart"]
 AUTO_LOAD = ["sensor", "binary_sensor"]
 
-CHIQ_AC_VERSION = "0.1.0"
+DEXP_AC_VERSION = "0.1.0"
 
 CONF_CURRENT_TEMPERATURE = "current_temperature"
 CONF_TURBO_STATE = "turbo_state"
 CONF_IONIZER_STATE = "ionizer_state"
 CONF_QUIET_STATE = "quiet_state"
 
-chiq_ac_ns = cg.esphome_ns.namespace("chiq_ac")
-ChiqAirCon = chiq_ac_ns.class_(
-    "ChiqAirCon", climate.Climate, cg.Component, uart.UARTDevice
+dexp_ac_ns = cg.esphome_ns.namespace("dexp_ac")
+DexpAirCon = dexp_ac_ns.class_(
+    "DexpAirCon", climate.Climate, cg.Component, uart.UARTDevice
 )
-Capabilities = chiq_ac_ns.namespace("Constants")
+Capabilities = dexp_ac_ns.namespace("Constants")
 
 CUSTOM_FAN_MODES = {
     "TURBO": Capabilities.TURBO,
@@ -70,15 +70,15 @@ validate_swing_modes = cv.enum(ALLOWED_CLIMATE_SWING_MODES, upper=True)
 
 
 def output_info(config):
-    _LOGGER.info("CHiQ/DEXP AC component version: %s", CHIQ_AC_VERSION)
+    _LOGGER.info("DEXP AC component version: %s", DEXP_AC_VERSION)
     return config
 
 
 CONFIG_SCHEMA = cv.All(
-    climate.climate_schema(ChiqAirCon)
+    climate.climate_schema(DexpAirCon)
     .extend(
         {
-            cv.GenerateID(): cv.declare_id(ChiqAirCon),
+            cv.GenerateID(): cv.declare_id(DexpAirCon),
             cv.Optional(CONF_PERIOD, default="5s"): cv.time_period,
             cv.Optional(CONF_OPTIMISTIC, default=True): cv.boolean,
             cv.Optional(CONF_CURRENT_TEMPERATURE): sensor.sensor_schema(
