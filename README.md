@@ -1,11 +1,11 @@
-# ESPHome CHiQ/DEXP AC Component
+# ESPHome DEXP AC Component
 
-External ESPHome climate component for CHiQ/DEXP indoor AC units using the
+External ESPHome climate component for DEXP indoor AC units using the
 decoded UART protocol documented in `protocol.md` and `protocol_ru.md`.
 
 The component is based on the ESPHome external-component shape used by
 `GrKoR/esphome_aux_ac_component`, but the UART parser and command builder are
-implemented for the CHiQ/DEXP protocol:
+implemented for the DEXP protocol:
 
 - UART: `9600 8N1`
 - Startup handshake: `AA 03 03 03 B3`
@@ -33,8 +33,8 @@ only after that response is received.
 
 ```yaml
 external_components:
-  - source: github://Ra3mbl/esphome_chiq_ac_component
-    components: [ chiq_ac ]
+  - source: github://Ra3mbl/esphome_dexp_ac_component
+    components: [ dexp_ac ]
 
 uart:
   id: ac_uart_bus
@@ -50,7 +50,7 @@ climate:
     name: "CHiQ AC"
 ```
 
-See `examples/simple/chiq_ac_simple.yaml` for a fuller example.
+See `examples/simple/dexp_ac_simple.yaml` for a fuller example.
 
 ## Current Protocol Assumptions
 
