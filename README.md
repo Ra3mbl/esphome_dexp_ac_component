@@ -46,8 +46,8 @@ uart:
   stop_bits: 1
 
 climate:
-  - platform: chiq_ac
-    name: "CHiQ AC"
+  - platform: dexp_ac
+    name: "DEXP AC"
 ```
 
 See `examples/simple/dexp_ac_simple.yaml` for a fuller example.
