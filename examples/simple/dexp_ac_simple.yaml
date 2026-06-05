@@ -1,10 +1,10 @@
 external_components:
-  - source: github://Ra3mbl/esphome_chiq_ac_component
-    components: [ chiq_ac ]
+  - source: github://Ra3mbl/esphome_dexp_ac_component
+    components: [ dexp_ac ]
     refresh: 0s
 
 esphome:
-  name: chiq-air-conditioner
+  name: dexp-air-conditioner
 
 esp8266:
   board: esp12e
@@ -32,13 +32,13 @@ uart:
   stop_bits: 1
 
 climate:
-  - platform: chiq_ac
-    name: "CHiQ AC"
+  - platform: dexp_ac
+    name: "DEXP AC"
     current_temperature:
-      name: "CHiQ Current Temperature"
+      name: "DEXP Current Temperature"
     turbo_state:
-      name: "CHiQ Turbo"
+      name: "DEXP Turbo"
     ionizer_state:
-      name: "CHiQ Ionizer"
+      name: "DEXP Ionizer"
     quiet_state:
-      name: "CHiQ Quiet"
+      name: "DEXP Quiet"
